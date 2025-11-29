@@ -1,0 +1,419 @@
+---
+title: "Life expectancy"
+author: "Franck Sombo and Maria Fernanda Peniche"
+date: "`r format(Sys.Date())`"
+output: 
+  html_document:
+    toc: true
+params:
+  year: 2015
+  country: "France"
+  
+---
+
+```{r load_package, include=FALSE}
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+library(kableExtra)
+library(cowplot)
+library(stringr)
+library(maps)
+```
+
+```{r load_data, include=FALSE}
+
+life_exp <- read.csv("life_expectancy.csv")
+
+```
+
+```{r data_cleaning, include=FALSE, warning=FALSE}
+
+# Renaming table columns and keeping columns of interest 
+
+names(life_exp) <- c("Country", "Year", "Status", "Population", "Hepatitis_B", "Measles", "Polio", "Diphtheria", "HIV_AIDS", "Infant_Deaths", "Under_Five_Deaths", "Total_Expenditure", "GDP", "BMI", "Thinness_1_19_Years", "Alcohol","Schooling", "Life_Expectancy")
+
+life_exp <- select(life_exp, -c(Measles, HIV_AIDS, Under_Five_Deaths, BMI, Thinness_1_19_Years, Alcohol))
+
+# Changing data types for analysis
+life_exp <- life_exp %>% mutate(Status = as.factor(Status))
+
+# Cleaning countries names
+life_exp$Country <- str_replace_all(life_exp$Country, "CÃ´te d'Ivoire", "Ivory Coast")
+
+```
+
+# Introduction
+
+Life expectancy is a critical metric of global health and well-being, reflecting the impact of healthcare access, economic development, and public policies. Variations in life expectancy across countries highlight disparities in socio-economic conditions and public health infrastructure. This report examines the relationship between life expectancy and key indicators such as health expenditure, vaccination coverage, GDP, and infant mortality. Through a series of visualizations, we aim to provide insights into how these factors interrelate and their implications for improving life expectancy.
+
+# Global overview
+
+Between 2000 and 2015, global life expectancy showed a consistent upward trend, increasing from approximately 67 years to 71.5 years. This growth reflects  improvements in healthcare, public health initiatives, and living standards worldwide. By 2015, these cumulative efforts seem to have contributed to a notable increase in life expectancy.
+
+```{r g1_life_exp_over_years, echo=FALSE, warning=FALSE, fig.align = 'center', fig.height=3, fig.width=5}
+
+# Average life expectancy over years
+
+# Graph 1
+life_exp %>%
+  group_by(Year) %>%
+  summarise(avg_life_expectancy = mean(Life_Expectancy, na.rm = TRUE)) %>%
+  ggplot(aes(x = Year, y = avg_life_expectancy)) +
+  geom_line() +
+  geom_point() +
+  scale_y_continuous(breaks = seq(0, 100, 10)) +
+  labs(title = "Grap 1. Global Life Expectancy Increases by more than Four points in 15 years",
+       subtitle = "Global Average Life Expectancy Over Time",
+       x = "Year",
+       y = "Average Life Expectancy (years)",
+       caption = "Source: Kaggle") +
+  theme_minimal()
+
+```
+In the following table, we can observe the descriptive statistics of the global variables: Life Expectancy, GDP and Population.
+
+```{r stats, echo=FALSE, warning=FALSE}
+
+## Create a summary statistics table for variables of interest
+
+summary_stats <- data.frame(
+  Variable = c("Life Expectancy", "GDP", "Population"),
+  Mean = c(
+    mean(life_exp$Life_Expectancy, na.rm = TRUE),
+    mean(life_exp$GDP, na.rm = TRUE),
+    mean(life_exp$Population, na.rm = TRUE)
+  ),
+  Median = c(
+    median(life_exp$Life_Expectancy, na.rm = TRUE),
+    median(life_exp$GDP, na.rm = TRUE),
+    median(life_exp$Population, na.rm = TRUE)
+  ),
+  StD = c(
+    sd(life_exp$Life_Expectancy, na.rm = TRUE),
+    sd(life_exp$GDP, na.rm = TRUE),
+    sd(life_exp$Population, na.rm = TRUE)
+  )
+)
+
+## Formatting the table with kableExtra
+summary_stats %>%
+  kbl(caption = "Summary Statistics of Key Variables",
+      digits = 2,
+      format.args = list(big.mark = ",")) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
+                full_width = FALSE,
+                position = "center") %>%
+  row_spec(0, bold = TRUE) %>%
+  column_spec(1, bold = TRUE)
+
+```
+
+We can observe Life Expectancy by Country in the following map for the year `r params$year`
+
+```{r g2_map, echo=FALSE, warning=FALSE, fig.align='center'}
+
+world_map <- map_data("world")
+
+life_exp_map <- life_exp %>%
+  filter(Year == params$year) %>%
+  select(region = Country, Life_Expectancy)
+
+life_exp_map <- life_exp_map %>%
+  mutate(region = case_when(
+    region == "Antigua and Barbuda" ~ "Antigua",
+    region == "Bolivia (Plurinational State of)" ~ "Bolivia",
+    region == "Brunei Darussalam" ~ "Brunei",
+    region == "CÃ´te d'Ivoire" ~ "Ivory Coast",
+    region == "Cabo Verde" ~ "Cape Verde",
+    region == "Czechia" ~ "Czech Republic",
+    region == "Democratic People's Republic of Korea" ~ "North Korea",
+    region == "Democratic Republic of the Congo" ~ "Republic of Congo",
+    region == "Dominican Republic" ~ "Dominica",
+    region == "Georgia" ~ "South Georgia",
+    region == "Grenada" ~ "Grenadine",
+    region == "Guyana" ~ "French Guiana",
+    region == "Iran (Islamic Republic of)" ~ "Iran",
+    region == "Micronesia (Federated States of)" ~ "Micronesia",
+    region == "Republic of Korea" ~ "South Korea",
+    region == "Republic of Moldova" ~ "Moldova",
+    region == "Russian Federation" ~ "Russia",
+    region == "Saint Vincent and the Grenadines" ~ "Saint Vincent",
+    region == "Syrian Arab Republic" ~ "Syria",
+    region == "The former Yugoslav republic of Macedonia" ~ "North Macedonia",
+    region == "Trinidad and Tobago" ~ "Trinidad",
+    region == "United Kingdom of Great Britain and Northern Ireland" ~ "UK",
+    region == "United Republic of Tanzania" ~ "Tanzania",
+    region == "United States of America" ~ "USA",
+    region == "Venezuela (Bolivarian Republic of)" ~ "Venezuela",
+    region == "Viet Nam" ~ "Vietnam",
+    TRUE ~ region  # Mantener otros valores sin cambios
+  ))
+
+t <-anti_join(world_map, life_exp_map, by = "region") #To find the observations that do not match
+
+life_exp_map_2 <- left_join(world_map, life_exp_map, by = "region")
+
+# Graph 2
+
+ggplot(life_exp_map_2, aes(long, lat, group = group))+
+  geom_polygon(aes(fill = Life_Expectancy )) +
+  scale_fill_viridis_c(option = "C") +
+  labs (title = "Graph 2. World's Life expectancy",
+        subtitle = "Life expectancy by country",
+        caption = "Source: Kaggle")
+
+```
+
+# Demographic Data
+
+Demographic data, such as population size, country development, and urbanization levels, influence health outcomes and healthcare needs. Population trends also impact resource allocation and policy decisions, making demographic analysis essential for understanding variations in life expectancy across countries.
+
+The following two graphs show the top 10 countries with the highest and lowest life expectancy per country in year 2015, which is the most recent year from the dataset.
+
+```{r g3_g4_top_10_highest_life_expectancy, echo=FALSE, warning=FALSE, fig.align='center'}
+
+## Top 10 Countries with the highest life expectancy 2015 
+
+top10_highest_life_exp_2015 <- life_exp %>% 
+  filter(Year == 2015, na.rm = TRUE) %>% 
+  arrange(desc(Life_Expectancy)) %>% 
+  select(Country, Life_Expectancy)
+
+top10_highest_life_exp_2015 <- top10_highest_life_exp_2015[1:10,]
+
+# Graph 3
+
+highest <- ggplot(top10_highest_life_exp_2015, aes(x = reorder(Country,Life_Expectancy), y = Life_Expectancy, fill = Country)) +
+  geom_col() +
+  labs(title = "Graph 3. Highest Life Expectancy",
+       subtitle = "Top 10 countries in 2015",
+       x = "Country",
+       y = "Life Expectancy (years)",
+       caption = "Source: Kaggle") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        plot.margin = margin(10, 10, 20, 10),
+        legend.position = "none",
+        panel.background = element_blank())
+
+## Top 10 Countries with the lowest life expectancy 2015
+
+top10_lowest_life_exp_2015 <- life_exp %>% 
+  filter(Year == 2015, na.rm = TRUE) %>% 
+  arrange(Life_Expectancy) %>% 
+  select(Country, Life_Expectancy)
+
+top10_lowest_life_exp_2015 <- top10_lowest_life_exp_2015[1:10,]
+
+# Graph 4
+
+lowest <- ggplot(top10_lowest_life_exp_2015, aes(x = reorder(Country,-Life_Expectancy), y = Life_Expectancy, fill = Country)) +
+  geom_col() +
+  scale_fill_grey(start = 0.8, end = 0.2) +
+  labs(title = "Graph 4. Lowest Life Expectancy",
+       subtitle = "Top 10 countries in 2015",
+       x = "Country",
+       y = "Life Expectancy (years)",
+       caption = "Source: Kaggle") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        plot.margin = margin(10, 10, 20, 10),
+        legend.position = "none",
+        panel.background = element_blank())
+
+# Arrange Graphs Side-by-Side with Spacing
+aligned_plot <- cowplot::plot_grid(
+  highest, lowest,
+  nrow = 1, 
+  rel_widths = c(1, 1), 
+  align = "hv", 
+  labels = NULL 
+)
+
+# Add Space Between the Graphs
+spaced_plot <- plot_grid(
+  aligned_plot, 
+  NULL , # Add a blank space for separation
+  rel_heights = c(1, 0.05), # Adjust spacing
+  nrow = 2
+)
+
+spaced_plot
+
+```
+
+
+# Economic Factors
+
+Economic factors, including GDP and health expenditure, play a significant role in shaping health outcomes. Countries with higher economic resources often allocate more funding to healthcare, leading to better infrastructure, access to services, and improved life expectancy. Examining these factors helps to uncover the economic drivers behind global health disparities.
+As such, the equitable distribution of wealth in a country tends to positively correlate with higher life expectancy.
+
+```{r g7_GDP_vs_Life_exp, echo=FALSE, warning=FALSE, fig.align='center', fig.height=3, fig.width=4}
+
+# Exploring relationship between GDP vs Life Expectancy
+
+# Graph 5
+ggplot(life_exp, aes(x = GDP, y = Life_Expectancy)) +
+  geom_point(color = "deeppink3", alpha=0.5) +
+  labs(
+    title = "Graph 5. Stronger Correlation between Life Expectancy and GDP per capita",
+    subtitle = "Life Expectancy vs GDP",
+    x = "GDP",
+    y = "Life Expectancy (years)",
+    
+    color = "Status", 
+    size = "Population",
+    caption = "Source: Kaggle"
+  ) +
+  theme_minimal() +
+  theme(
+    panel.background = element_blank(),
+    plot.title = element_text(hjust = 0.5) # Center the title
+  )
+
+```
+
+The more a country is developed, the higher their median life expectancy compared to developing countries. The gap between developed and developing countries in terms of median life expectancy is about 10 years, which is significant. Likewise, there are more developing countries with a life expectancy beneath the median line, than those with developed status (see Graph 6).
+
+```{r g6_life_exp_status, echo=FALSE, warning=FALSE, fig.align='center', fig.height=4, fig.width=6}
+
+# Comparing life expectancy between developed and developing countries
+
+#Graph 6
+
+ggplot(life_exp, aes(x = Status, y = Life_Expectancy, fill = Status)) + 
+  geom_boxplot() + 
+  scale_fill_manual(values = c("Developed" = "lightblue", "Developing" = "darkblue")) +
+  labs(title = "Graph 6. Higher Median Life Expectancy among Developed Countries",
+       subtitle = "Life Expectancy Distribution by Country Status",
+                                                y = "Life Expectancy (years)",
+                                                x = "Country Status",
+                                                caption = "Source: Kaggle") +
+                                           theme(legend.position = "none") +
+                                           theme(
+    panel.background = element_blank(),
+    plot.title = element_text(hjust = 0.5) # Center the title
+  )
+```
+
+
+# Health Indicators
+
+Health indicators are critical metrics used to evaluate the effectiveness of healthcare systems and public health policies. Metrics such as vaccination coverage, infant mortality rates, and disease prevalence provide insights into a population's overall health and access to essential healthcare services. These indicators highlight disparities in healthcare outcomes across countries and their correlation with life expectancy.
+
+We chose to analyze the average vaccination rates for the most recent year we have which is 2015.
+
+```{r g7_vaccination_df, echo=FALSE, include=FALSE, warning=FALSE, fig.align='center', fig.height=5, fig.width=7}
+
+# Filter year = 2015 and keep columns needed
+vacc_rate <- life_exp %>% 
+  filter(Year == 2015) %>%
+  select(Status, Hepatitis_B, Polio, Diphtheria)
+
+# Reshape data for ggplot2 and calculate mean rates
+vacc_rate_2 <- vacc_rate %>%
+  pivot_longer(cols = c(Hepatitis_B, Polio, Diphtheria), 
+               names_to = "Vaccination", 
+               values_to = "Rate")
+
+vacc_rate_mean <- vacc_rate_2 %>%
+  group_by(Vaccination, Status) %>%
+  summarise(Mean_Rate = mean(Rate, na.rm = TRUE))
+
+# Graph 7
+
+ggplot(vacc_rate_mean, aes(x = Vaccination, y = Mean_Rate, fill = Status)) +
+  geom_col(position = "dodge") +
+  labs(
+    title = "Graph 7. Higher Vaccination Rates among Developed Countries",
+    subtitle = "Average Vaccination Rates by Country Development Status (2015)",
+    x = "Vaccination Type",
+    y = "Average Vaccination Rate (%)",
+    caption = "Source: Kaggle",
+    fill = "Development Status"
+  ) +
+  scale_fill_manual(values = c("Developed" = "lightblue", "Developing" = "darkblue")) +
+  theme(panel.background = element_blank())
+
+```
+We can observe from the graph 7 that Developed countries have in average higher vaccinations rates for Diphteria, Hepatitis B and Polio which are close to having the complete population vaccinated, while Developing countries have similar average vaccination rates for the 3 diseases.
+
+```{r g8_inf_deaths, echo=FALSE, warning=FALSE, fig.align='center', fig.height=4, fig.width=6}
+
+## Top 10 Countries with the lowest life expectancy 2015
+
+top10_lowest_life_exp_2015 <- life_exp %>% 
+  filter(Year == 2015, na.rm = TRUE) %>% 
+  arrange(Life_Expectancy) %>% 
+  select(Country, Life_Expectancy, Infant_Deaths)
+
+top10_lowest_life_exp_2015 <- top10_lowest_life_exp_2015[1:10,]
+
+# Graph 8
+
+ggplot(top10_lowest_life_exp_2015, aes(x = reorder(Country, Infant_Deaths), y = Infant_Deaths, fill = Country)) +
+  geom_col() +
+  scale_fill_grey(start = 0.8, end = 0.2) +
+  labs(title = "Graph 8. African Countries experienced more Infant Deaths in 2015",
+       subtitle = "Infant Deaths among the top 10 countries with the lowest life expectancy",
+       x = "Country",
+       y = "Infant deaths",
+       caption = "Source: Kaggle") +
+  coord_flip() +
+  theme(legend.position = "none",
+        panel.background = element_blank())
+```
+Among countries with low life expectancy, African countries seem to have experienced more infant deaths in 2015. Relatively, the higher the population size, the higher number of infant deaths recorded. Issues related to health infrastructure, equitable access, socio-economic and environmental factors might constitute some challenges worth examining.
+
+# `r params$country` and the World 
+
+Examining `r params$country`'s life expectancy trends in relation to global extremes—countries with the highest and lowest life expectancy mean over the years—offers valuable context for understanding global health disparities and the factors contributing to `r params$country`'s life expectancy.
+
+```{r g9_life_exp, echo=FALSE, warning=FALSE, fig.align='center', fig.height=3, fig.width=5}
+
+# Creating data frame of parameter of interest 
+country1 <- life_exp %>% 
+  filter(Country == params$country, na.rm = TRUE) %>% 
+  select(Country, Year, Life_Expectancy)
+
+# Finding the countries with the highest/lowest average life expectancy over the years
+
+mean_life_exp <- life_exp %>% 
+  group_by(Country) %>%
+  summarise(Mean_Life_Exp = mean(Life_Expectancy, na.rm = TRUE)) 
+
+highest_country <- mean_life_exp %>%
+  filter(Mean_Life_Exp == max(Mean_Life_Exp, na.rm = TRUE)) %>%
+  pull(Country)
+
+lowest_country <- mean_life_exp %>%
+  filter(Mean_Life_Exp == min(Mean_Life_Exp, na.rm = TRUE)) %>%
+  pull(Country)
+
+# Creating a data frame of the param country and the countries with highest and lowest average life expectancy over the years
+
+life_exp_3_countries <- life_exp %>% 
+  filter(Country == params$country | Country == highest_country 
+         | Country == lowest_country)
+
+# Graph 9
+
+ggplot(life_exp_3_countries, aes(x = Year, y = Life_Expectancy, color = Country)) +
+  geom_line(size = 0.7) +  
+  geom_point(size = 1.5) + 
+  scale_color_manual(
+    values = setNames(c("turquoise", "blue", "deeppink4"), # Colores
+        c(params$country, highest_country, lowest_country))) +
+  labs(
+    title = "Graph 9. Life Expectancy Over Time",
+    x = "Year",
+    y = "Life Expectancy (years)",
+    caption = "Source: Kaggle",
+    color = "Country"
+  ) +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme_minimal()
+
+```
+
+
+
