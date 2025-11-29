@@ -1,6 +1,6 @@
 # Life Expectancy Analyis 2000 - 2015
 
-This analysis examines the relationship between life expectancy and key indicators such as health expenditure, vaccination coverage, GDP, and infant mortality. Through a series of visualizations, the report aims to provide insights into how these factors interrelate and their implications for improving life expectancy.
+This project is a collaborative initiative, which seeks to examine the relationship between life expectancy and key indicators such as health expenditure, vaccination coverage, GDP, and infant mortality. Through a series of visualizations, the report aims to provide insights into how these factors interrelate and their implications for improving life expectancy. It ends with a feature of life expectancy in France relative to other countries in the year 2015.
 
 Data Source:
 The dataset is sourced from the Kaggle platform.
