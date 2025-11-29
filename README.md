@@ -2,6 +2,12 @@
 
 This project is a collaborative initiative, which seeks to examine the relationship between life expectancy and key indicators such as health expenditure, vaccination coverage, GDP, and infant mortality. Through a series of visualizations, the report aims to provide insights into how these factors interrelate and their implications for improving life expectancy. It ends with a feature of life expectancy in France relative to other countries in the year 2015.
 
+Hypothesis: 
+Health and socio-economic factors influence life expectancy
+
+Project goal: 
+Investigate life expectancy patterns across countries, trends over time and dispartiies across developed and developing countries
+
 Data Source:
 The dataset is sourced from the Kaggle platform.
 
